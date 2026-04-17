@@ -6,9 +6,10 @@ Simple, self-hosted Go service for browser Reporting API ingestion.
 
 ### What
 
-`browser-reporting-api` is an HTTP service that receives browser Reporting API
-payloads (`application/reports+json`), validates each report entry, and streams
-accepted entries to stdout as NDJSON (one JSON object per line).
+`browser-reporting-api` is an HTTP service that receives browser reporting
+payloads (`application/reports+json` and legacy `application/csp-report` from
+`report-uri`), validates each report entry, and streams accepted entries to
+stdout as NDJSON (one JSON object per line).
 
 The payload format and reporting behavior align with the browser Reporting API
 documented by

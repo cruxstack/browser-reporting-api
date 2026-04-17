@@ -88,7 +88,7 @@ func (h *Handler) setCORSHeaders(w http.ResponseWriter, r *http.Request) bool {
 
 func ensureReportsContentType(value string) error {
 	if strings.TrimSpace(value) == "" {
-		return errors.New("content-type must be application/reports+json")
+		return errors.New("content-type must be application/reports+json or application/csp-report")
 	}
 
 	mediaType, _, err := mime.ParseMediaType(value)
@@ -96,8 +96,8 @@ func ensureReportsContentType(value string) error {
 		return errors.New("invalid content-type")
 	}
 
-	if mediaType != "application/reports+json" {
-		return errors.New("content-type must be application/reports+json")
+	if mediaType != "application/reports+json" && mediaType != "application/csp-report" {
+		return errors.New("content-type must be application/reports+json or application/csp-report")
 	}
 
 	return nil

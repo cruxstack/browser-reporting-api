@@ -83,6 +83,30 @@ func TestIngestRejectsDisallowedOrigin(t *testing.T) {
 	}
 }
 
+func TestIngestAcceptsLegacyCSPReportURIFormat(t *testing.T) {
+	h := newTestHandler(t, []string{"*"})
+
+	body := `{"csp-report":{"document-uri":"https://site.example/page","violated-directive":"frame-src"}}`
+	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/csp-report")
+	rr := httptest.NewRecorder()
+
+	h.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected %d, got %d", http.StatusOK, rr.Code)
+	}
+
+	var response map[string]int
+	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+
+	if response["received"] != 1 || response["accepted"] != 1 || response["rejected"] != 0 {
+		t.Fatalf("unexpected response: %+v", response)
+	}
+}
+
 func TestPreflightAllowsWildcardPatternOrigin(t *testing.T) {
 	h := newTestHandler(t, []string{"https://*.example.com"})
 

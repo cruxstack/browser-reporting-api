@@ -1,0 +1,63 @@
+[
+  {
+    "age": 1,
+    "type": "csp-violation",
+    "url": "https://site.example/checkout",
+    "user_agent": "demo-sender/2.0",
+    "body": {
+      "effectiveDirective": "script-src",
+      "blockedURL": "https://cdn.bad-example.test/tracker.js",
+      "disposition": "enforce"
+    }
+  },
+  {
+    "age": 3,
+    "type": "deprecation",
+    "url": "https://site.example/dashboard",
+    "user_agent": "demo-sender/2.0",
+    "body": {
+      "id": "PrefixedStorageInfo",
+      "message": "Prefixed StorageInfo is deprecated"
+    }
+  },
+  {
+    "age": 5,
+    "type": "coep",
+    "url": "https://site.example/embed",
+    "user_agent": "demo-sender/2.0",
+    "body": {
+      "blockedURL": "https://thirdparty.example/widget.js",
+      "destination": "script"
+    }
+  },
+  {
+    "age": 2,
+    "type": "intervention",
+    "url": "https://site.example/video",
+    "user_agent": "demo-sender/2.0",
+    "body": {
+      "id": "HeavyAdIntervention",
+      "message": "Ad resource exceeded heavy ad limits"
+    }
+  },
+  {
+    "age": 8,
+    "type": "network-error",
+    "url": "https://site.example/profile",
+    "user_agent": "demo-sender/2.0",
+    "body": {
+      "status_code": 503,
+      "phase": "application"
+    }
+  },
+  {
+    "age": 13,
+    "type": "permissions-policy-violation",
+    "url": "https://site.example/embed/camera",
+    "user_agent": "demo-sender/2.0",
+    "body": {
+      "featureId": "camera",
+      "sourceFile": "https://site.example/embed/camera"
+    }
+  }
+]

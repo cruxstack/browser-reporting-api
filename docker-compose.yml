@@ -1,0 +1,30 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      LISTEN_ADDR: ${LISTEN_ADDR:-:8080}
+      BASE_PATH: ${BASE_PATH:-/}
+      MAX_BODY_BYTES: ${MAX_BODY_BYTES:-1048576}
+      REPORTS_ALLOWED_ORIGINS: ${REPORTS_ALLOWED_ORIGINS:-*}
+    ports:
+      - "8080:8080"
+
+  demo-sender:
+    image: curlimages/curl:8.12.1
+    depends_on:
+      - api
+    volumes:
+      - ./demo/reports.json:/payload/reports.json:ro
+    environment:
+      BASE_PATH: ${BASE_PATH:-/}
+    command: >-
+      sh -c 'sleep 2;
+      BASE_PATH="$${BASE_PATH:-/}";
+      URL_PATH="$${BASE_PATH%/}/v1/reports";
+      if [ -z "$${URL_PATH}" ]; then URL_PATH="/v1/reports"; fi;
+      curl -sS -i -X POST
+      -H "Content-Type: application/reports+json"
+      --data-binary @/payload/reports.json
+      "http://api:8080$${URL_PATH}"'

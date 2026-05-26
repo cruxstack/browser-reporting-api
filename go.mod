@@ -4,7 +4,7 @@ go 1.26.2
 
 require (
 	github.com/cockroachdb/errors v1.12.0
-	github.com/go-chi/chi/v5 v5.2.5
+	github.com/go-chi/chi/v5 v5.3.0
 )
 
 require (

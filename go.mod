@@ -1,4 +1,4 @@
-module github.com/cruxstack/browser-reporting-api
+module github.com/cruxstack/browser-reporting-api/v2
 
 go 1.27.3
 

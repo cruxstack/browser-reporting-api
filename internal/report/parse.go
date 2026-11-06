@@ -1,4 +1,4 @@
-package parser
+package report
 
 import (
 	"bytes"
@@ -6,19 +6,28 @@ import (
 	"errors"
 	"fmt"
 	"io"
-
-	"github.com/cruxstack/browser-reporting-api/internal/domain"
 )
 
-// JSONBatchParser implements domain.Parser for the application/reports+json
-// wire format: a single JSON array of report objects.
-type JSONBatchParser struct{}
+// The content types the endpoint accepts. Either may carry either body
+// format; Parse decides by the body itself.
+const (
+	// ContentTypeReports is the Reporting API's batch format, sent to
+	// endpoints named by the Reporting-Endpoints header and CSP report-to.
+	ContentTypeReports = "application/reports+json"
+	// ContentTypeCSPReport is the legacy format of the CSP report-uri
+	// directive: one violation per request.
+	ContentTypeCSPReport = "application/csp-report"
+)
 
-func NewJSONBatchParser() *JSONBatchParser {
-	return &JSONBatchParser{}
-}
+// TypeCSPViolation is the Reporting API type of a CSP violation report.
+// Legacy report-uri reports are given this type.
+const TypeCSPViolation = "csp-violation"
 
-func (p *JSONBatchParser) ParseBatch(r io.Reader) ([]domain.IncomingReport, error) {
+// Parse decodes a request body into its report entries. The body is a
+// single JSON value: either a Reporting API batch (an array of reports) or a
+// legacy CSP report (an object with a "csp-report" member). An error means
+// the body as a whole is malformed.
+func Parse(r io.Reader) ([]Incoming, error) {
 	decoder := json.NewDecoder(r)
 
 	var payload json.RawMessage
@@ -31,7 +40,7 @@ func (p *JSONBatchParser) ParseBatch(r io.Reader) ([]domain.IncomingReport, erro
 		return nil, errors.New("reports payload must include at least one report")
 	}
 
-	reports, err := parseReportsPayload(payload)
+	reports, err := parsePayload(payload)
 	if err != nil {
 		return nil, err
 	}
@@ -48,23 +57,24 @@ func (p *JSONBatchParser) ParseBatch(r io.Reader) ([]domain.IncomingReport, erro
 	return reports, nil
 }
 
-func parseReportsPayload(payload json.RawMessage) ([]domain.IncomingReport, error) {
-	if payload[0] == '[' {
-		var reports []domain.IncomingReport
+func parsePayload(payload json.RawMessage) ([]Incoming, error) {
+	switch payload[0] {
+	case '[':
+		var reports []Incoming
 		if err := json.Unmarshal(payload, &reports); err != nil {
 			return nil, fmt.Errorf("decode reports payload: %w", err)
 		}
 		return reports, nil
+	case '{':
+		return parseLegacyCSPReport(payload)
+	default:
+		return nil, errors.New("reports payload must be a JSON array or object")
 	}
-
-	if payload[0] == '{' {
-		return parseLegacyCSPReportPayload(payload)
-	}
-
-	return nil, errors.New("reports payload must be a JSON array or object")
 }
 
-func parseLegacyCSPReportPayload(payload json.RawMessage) ([]domain.IncomingReport, error) {
+// parseLegacyCSPReport converts a report-uri body into one csp-violation
+// entry. The violation keeps its legacy (kebab-case) fields as the body.
+func parseLegacyCSPReport(payload json.RawMessage) ([]Incoming, error) {
 	var legacy struct {
 		CSPReport json.RawMessage `json:"csp-report"`
 	}
@@ -88,8 +98,8 @@ func parseLegacyCSPReportPayload(payload json.RawMessage) ([]domain.IncomingRepo
 		return nil, fmt.Errorf("decode legacy csp-report body: %w", err)
 	}
 
-	return []domain.IncomingReport{{
-		Type: "csp-violation",
+	return []Incoming{{
+		Type: TypeCSPViolation,
 		URL:  body.DocumentURI,
 		Body: trimmed,
 	}}, nil

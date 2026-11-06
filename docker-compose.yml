@@ -2,29 +2,35 @@ services:
   api:
     build:
       context: .
-      dockerfile: Dockerfile
+      args:
+        VERSION: ${VERSION:-dev}
     environment:
-      LISTEN_ADDR: ${LISTEN_ADDR:-:8080}
-      BASE_PATH: ${BASE_PATH:-/}
-      MAX_BODY_BYTES: ${MAX_BODY_BYTES:-1048576}
-      REPORTS_ALLOWED_ORIGINS: ${REPORTS_ALLOWED_ORIGINS:-*}
+      APP_LOG_LEVEL: ${APP_LOG_LEVEL:-info}
+      APP_BASE_PATH: ${APP_BASE_PATH:-/}
+      APP_MAX_BODY_BYTES: ${APP_MAX_BODY_BYTES:-1048576}
+      APP_REPORTS_ALLOWED_ORIGINS: ${APP_REPORTS_ALLOWED_ORIGINS:-*}
     ports:
       - "8080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO /dev/null \"http://127.0.0.1:8080$${APP_BASE_PATH%/}/v1/manage/readyz\""]
+      interval: 2s
+      timeout: 2s
+      retries: 15
 
+  # sends the example reports in both formats, once the api is healthy
   demo-sender:
     image: curlimages/curl:8.12.1
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     volumes:
-      - ./demo/reports.json:/payload/reports.json:ro
+      - ./examples/reports:/reports:ro
     environment:
-      BASE_PATH: ${BASE_PATH:-/}
-    command: >-
-      sh -c 'sleep 2;
-      BASE_PATH="$${BASE_PATH:-/}";
-      URL_PATH="$${BASE_PATH%/}/v1/reports";
-      if [ -z "$${URL_PATH}" ]; then URL_PATH="/v1/reports"; fi;
-      curl -sS -i -X POST
-      -H "Content-Type: application/reports+json"
-      --data-binary @/payload/reports.json
-      "http://api:8080$${URL_PATH}"'
+      APP_BASE_PATH: ${APP_BASE_PATH:-/}
+    command:
+      - sh
+      - -c
+      - |
+        url="http://api:8080$${APP_BASE_PATH%/}/v1/reports"
+        curl -sS -X POST -H "Content-Type: application/reports+json" --data-binary @/reports/reporting-api.json "$$url"
+        curl -sS -X POST -H "Content-Type: application/csp-report" --data-binary @/reports/csp-report.json "$$url"

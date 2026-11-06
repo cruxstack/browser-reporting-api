@@ -1,4 +1,4 @@
-package domain
+package report
 
 import (
 	"strings"
@@ -8,7 +8,7 @@ import (
 
 func TestVetAcceptsValidReport(t *testing.T) {
 	now := time.Date(2026, 4, 13, 12, 0, 0, 0, time.UTC)
-	report := IncomingReport{
+	report := Incoming{
 		Age:       3,
 		Type:      "csp-violation",
 		URL:       "https://site.example/path",
@@ -27,7 +27,7 @@ func TestVetAcceptsValidReport(t *testing.T) {
 }
 
 func TestVetRejectsInvalidURL(t *testing.T) {
-	_, err := Vet(IncomingReport{
+	_, err := Vet(Incoming{
 		Type: "csp-violation",
 		URL:  "/relative",
 		Body: []byte(`{"x":1}`),
@@ -38,7 +38,7 @@ func TestVetRejectsInvalidURL(t *testing.T) {
 }
 
 func TestVetRejectsOversizedUserAgent(t *testing.T) {
-	_, err := Vet(IncomingReport{
+	_, err := Vet(Incoming{
 		Type:      "csp-violation",
 		URL:       "https://site.example",
 		UserAgent: strings.Repeat("a", maxUserAgentLen+1),

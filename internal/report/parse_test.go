@@ -1,4 +1,4 @@
-package parser
+package report
 
 import (
 	"strings"
@@ -6,7 +6,7 @@ import (
 )
 
 func TestParseBatchAcceptsSingleArrayValue(t *testing.T) {
-	reports, err := NewJSONBatchParser().ParseBatch(strings.NewReader(`[{"age":1,"type":"csp-violation","url":"https://site.example","body":{"x":1}}]`))
+	reports, err := Parse(strings.NewReader(`[{"age":1,"type":"csp-violation","url":"https://site.example","body":{"x":1}}]`))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -17,21 +17,21 @@ func TestParseBatchAcceptsSingleArrayValue(t *testing.T) {
 }
 
 func TestParseBatchRejectsEmptyArray(t *testing.T) {
-	_, err := NewJSONBatchParser().ParseBatch(strings.NewReader(`[]`))
+	_, err := Parse(strings.NewReader(`[]`))
 	if err == nil {
 		t.Fatal("expected error")
 	}
 }
 
 func TestParseBatchRejectsTrailingTopLevelValue(t *testing.T) {
-	_, err := NewJSONBatchParser().ParseBatch(strings.NewReader(`[{"age":1,"type":"csp-violation","url":"https://site.example","body":{"x":1}}]{"extra":true}`))
+	_, err := Parse(strings.NewReader(`[{"age":1,"type":"csp-violation","url":"https://site.example","body":{"x":1}}]{"extra":true}`))
 	if err == nil {
 		t.Fatal("expected error")
 	}
 }
 
 func TestParseBatchAcceptsLegacyCSPReportURIFormat(t *testing.T) {
-	reports, err := NewJSONBatchParser().ParseBatch(strings.NewReader(`{"csp-report":{"document-uri":"https://site.example/page","violated-directive":"frame-src"}}`))
+	reports, err := Parse(strings.NewReader(`{"csp-report":{"document-uri":"https://site.example/page","violated-directive":"frame-src"}}`))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -40,7 +40,7 @@ func TestParseBatchAcceptsLegacyCSPReportURIFormat(t *testing.T) {
 		t.Fatalf("expected 1 report, got %d", len(reports))
 	}
 
-	if reports[0].Type != "csp-violation" {
+	if reports[0].Type != TypeCSPViolation {
 		t.Fatalf("expected csp-violation type, got %q", reports[0].Type)
 	}
 
@@ -50,7 +50,7 @@ func TestParseBatchAcceptsLegacyCSPReportURIFormat(t *testing.T) {
 }
 
 func TestParseBatchRejectsLegacyCSPReportWithoutBody(t *testing.T) {
-	_, err := NewJSONBatchParser().ParseBatch(strings.NewReader(`{"type":"csp-violation"}`))
+	_, err := Parse(strings.NewReader(`{"type":"csp-violation"}`))
 	if err == nil {
 		t.Fatal("expected error")
 	}

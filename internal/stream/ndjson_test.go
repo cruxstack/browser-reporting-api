@@ -9,14 +9,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cruxstack/browser-reporting-api/internal/domain"
+	"github.com/cruxstack/browser-reporting-api/v2/internal/report"
 )
 
-func TestNDJSONWriterWriteReport(t *testing.T) {
+func TestNDJSONWriter_WriteReport(t *testing.T) {
 	var buf bytes.Buffer
 	w := NewNDJSONWriter(&buf)
 
-	report := domain.AcceptedReport{
+	r := report.Accepted{
 		ReceivedAt: time.Date(2026, time.April, 13, 10, 30, 45, 0, time.UTC),
 		Age:        2,
 		Type:       "csp-violation",
@@ -25,7 +25,7 @@ func TestNDJSONWriterWriteReport(t *testing.T) {
 		Body:       json.RawMessage(`{"effectiveDirective":"script-src"}`),
 	}
 
-	if err := w.WriteReport(context.Background(), report); err != nil {
+	if err := w.WriteReport(context.Background(), r); err != nil {
 		t.Fatalf("write report: %v", err)
 	}
 
@@ -51,7 +51,7 @@ func TestNDJSONWriterWriteReport(t *testing.T) {
 		t.Fatalf("unexpected received_at: %v", got["received_at"])
 	}
 
-	if got["type"] != report.Type || got["url"] != report.URL || got["user_agent"] != report.UserAgent {
+	if got["type"] != r.Type || got["url"] != r.URL || got["user_agent"] != r.UserAgent {
 		t.Fatalf("unexpected report output fields: %+v", got)
 	}
 
@@ -65,30 +65,47 @@ func TestNDJSONWriterWriteReport(t *testing.T) {
 	}
 }
 
-func TestNDJSONWriterConcurrentWrites(t *testing.T) {
+// A body sent pretty-printed is written on one line, as sent otherwise: its
+// keys keep their order and large numbers keep their digits.
+func TestNDJSONWriter_WritesBodyAsSentOnOneLine(t *testing.T) {
+	var buf bytes.Buffer
+	w := NewNDJSONWriter(&buf)
+
+	body := "{\n  \"z\": 1,\n  \"a\": 9007199254740993\n}"
+	err := w.WriteReport(context.Background(), report.Accepted{Type: "csp-violation", URL: "https://site.example", Body: json.RawMessage(body)})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	out := buf.String()
+	if strings.Count(out, "\n") != 1 {
+		t.Fatalf("wrote %q, want one line", out)
+	}
+	if !strings.Contains(out, `"body":{"z":1,"a":9007199254740993}`) {
+		t.Errorf("wrote %q, want the body compacted with its keys and digits unchanged", out)
+	}
+}
+
+func TestNDJSONWriter_ConcurrentWrites(t *testing.T) {
 	var buf bytes.Buffer
 	w := NewNDJSONWriter(&buf)
 
 	const total = 20
 	var wg sync.WaitGroup
-	wg.Add(total)
-
 	for i := range total {
-		go func(i int) {
-			defer wg.Done()
-			report := domain.AcceptedReport{
+		wg.Go(func() {
+			r := report.Accepted{
 				ReceivedAt: time.Date(2026, time.April, 13, 12, 0, i, 0, time.UTC),
 				Age:        int64(i),
 				Type:       "deprecation",
 				URL:        "https://site.example/page",
 				Body:       json.RawMessage(`{"id":"FeatureUse"}`),
 			}
-			if err := w.WriteReport(context.Background(), report); err != nil {
+			if err := w.WriteReport(context.Background(), r); err != nil {
 				t.Errorf("write report %d: %v", i, err)
 			}
-		}(i)
+		})
 	}
-
 	wg.Wait()
 
 	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")

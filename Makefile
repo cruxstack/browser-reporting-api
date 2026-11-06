@@ -20,7 +20,7 @@ TEST_FLAGS := -race -count=1
 # local runs
 COMPOSE  ?= docker compose
 BASE_URL ?= http://localhost:8080
-URL_PATH  = $(patsubst %/,%,$(or $(BASE_PATH),/))
+URL_PATH  = $(patsubst %/,%,$(or $(APP_BASE_PATH),/))
 
 .PHONY: help
 help: ## show this help
@@ -49,6 +49,10 @@ test: ## run all tests with the race detector
 .PHONY: test-unit
 test-unit: ## run unit tests
 	$(TEST_ENV) go test $(TEST_FLAGS) ./internal/...
+
+.PHONY: test-e2e
+test-e2e: ## run end-to-end tests through the real wiring
+	$(TEST_ENV) go test $(TEST_FLAGS) ./e2e
 
 .PHONY: cover
 cover: ## run tests with coverage and print a summary
@@ -95,15 +99,19 @@ logs: ## follow the server's output
 	$(COMPOSE) logs --follow api
 
 .PHONY: demo
-demo: up ## start the server, send the demo reports, and print the output
+demo: up ## start the server, send the example reports, and print its output
 	$(COMPOSE) run --rm demo-sender
 	$(COMPOSE) logs api
 
 .PHONY: report
-report: ## send the demo reports to a running server (BASE_URL, BASE_PATH)
-	curl -fsS -X POST -H 'Content-Type: application/reports+json' \
-	  --data-binary @demo/reports.json "$(BASE_URL)$(URL_PATH)/v1/reports"
+report: ## send the example reports to a running server (BASE_URL, APP_BASE_PATH)
+	curl -fsS -X POST -H "Content-Type: application/reports+json" \
+	  --data-binary @examples/reports/reporting-api.json "$(BASE_URL)$(URL_PATH)/v1/reports"
+	@echo
+	curl -fsS -X POST -H "Content-Type: application/csp-report" \
+	  --data-binary @examples/reports/csp-report.json "$(BASE_URL)$(URL_PATH)/v1/reports"
+	@echo
 
 .PHONY: health
-health: ## check a running server's health endpoint (BASE_URL, BASE_PATH)
+health: ## check a running server's health endpoint (BASE_URL, APP_BASE_PATH)
 	curl -fsS "$(BASE_URL)$(URL_PATH)/v1/manage/healthz"

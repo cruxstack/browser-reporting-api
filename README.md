@@ -18,7 +18,7 @@ documented by
 
 Endpoints:
 
-- `POST /v1/reports` (or `{BASE_PATH}/v1/reports`)
+- `POST /v1/reports` (or `{APP_BASE_PATH}/v1/reports`)
 - `GET /v1/manage/healthz`
 - `GET /v1/manage/readyz`
 
@@ -54,7 +54,7 @@ To keep watching streamed report lines:
 make logs
 ```
 
-The demo sender payload is stored at `demo/reports.json`.
+The demo sender payloads are stored in `examples/reports/`.
 
 Send a manual sample report:
 
@@ -62,8 +62,7 @@ Send a manual sample report:
 make report
 ```
 
-`make report` sends the same payload file used by the compose demo:
-`demo/reports.json`.
+`make report` sends the same payload files used by the compose demo.
 
 Health check:
 
@@ -79,18 +78,19 @@ make down
 
 Environment variables:
 
-- `LISTEN_ADDR` (default `:8080`)
-- `BASE_PATH` (default `/`)
-- `MAX_BODY_BYTES` (default `1048576`)
-- `REPORTS_ALLOWED_ORIGINS` (default `*`)
+- `APP_LISTEN_ADDR` (default `:8080`)
+- `APP_BASE_PATH` (default `/`)
+- `APP_MAX_BODY_BYTES` (default `1048576`)
+- `APP_REPORTS_ALLOWED_ORIGINS` (default `*`)
+- `APP_LOG_LEVEL` (default `info`)
 
 Allowed origin examples:
 
-- `REPORTS_ALLOWED_ORIGINS=*`
-- `REPORTS_ALLOWED_ORIGINS=https://app.example.com,https://admin.example.com`
-- `REPORTS_ALLOWED_ORIGINS=https://*.example.com,http://localhost:*`
+- `APP_REPORTS_ALLOWED_ORIGINS=*`
+- `APP_REPORTS_ALLOWED_ORIGINS=https://app.example.com,https://admin.example.com`
+- `APP_REPORTS_ALLOWED_ORIGINS=https://*.example.com,http://localhost:*`
 
-If `BASE_PATH=/collector`, endpoints become:
+If `APP_BASE_PATH=/collector`, endpoints become:
 
 - `POST /collector/v1/reports`
 - `GET /collector/v1/manage/healthz`
@@ -108,7 +108,7 @@ make check
 
 Implementation notes:
 
-- Routes are mounted under configurable `BASE_PATH`.
+- Routes are mounted under configurable `APP_BASE_PATH`.
 - Reporting ingestion accepts batched arrays and processes entries
   independently.
 - Invalid entries are rejected while valid entries in the same batch are still

@@ -1,10 +1,15 @@
-!**/.gitkeep
-
-tmp/
+# build output
 dist/
-.DS_Store
+coverage.out
+/browser-reporting-api
+/server
 
-.local/
+# local settings
 .env
+.local/
+tmp/
 
+# worktrees
+.worktrees/
 
+.DS_Store

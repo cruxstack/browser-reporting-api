@@ -1,128 +1,86 @@
 # browser-reporting-api
 
-Simple, self-hosted Go service for browser Reporting API ingestion.
+A small, self-hosted HTTP service that collects the reports browsers send
+with the [Reporting API](https://developer.mozilla.org/en-US/docs/Web/API/Reporting_API),
+including Content Security Policy violations, and writes each accepted
+report to stdout as one JSON line (NDJSON) for your log pipeline.
 
-## General
+## Features
 
-### What
+- **Both CSP report formats.** Reporting API batches
+  (`application/reports+json`, from `Reporting-Endpoints` and `report-to`)
+  and legacy `report-uri` reports (`application/csp-report`) are accepted
+  at one endpoint.
+- **Every report type.** CSP, deprecation, intervention, COEP, network
+  error, permissions policy, and any other type a browser sends.
+- **Safe to expose.** Size limits, content-type checks, and per-entry
+  vetting, so one bad entry doesn't cost the rest of its batch. CORS is
+  limited to the origins you allow, with wildcards.
+- **Easy to run and observe.** One static binary or container, configured
+  with environment variables that are checked at startup. Reports go to
+  stdout and the service's own logs to stderr, both as JSON.
 
-`browser-reporting-api` is an HTTP service that receives browser reporting
-payloads (`application/reports+json` and legacy `application/csp-report` from
-`report-uri`), validates each report entry, and streams accepted entries to
-stdout as NDJSON (one JSON object per line).
+Collected CSP reports help with the client-side script monitoring that
+PCI DSS requirements 6.4.3 and 11.6.1 ask of payment pages; see the
+[PCI Security Standards Council's guidance](https://blog.pcisecuritystandards.org/new-information-supplement-payment-page-security-and-preventing-e-skimming).
 
-The payload format and reporting behavior align with the browser Reporting API
-documented by
-[MDN](https://developer.mozilla.org/en-US/docs/Web/API/Reporting_API) and
-[Chrome](https://developer.chrome.com/docs/capabilities/web-apis/reporting-api).
+## How it works
 
-Endpoints:
+Point a page's reporting headers at the service:
 
-- `POST /v1/reports` (or `{BASE_PATH}/v1/reports`)
-- `GET /v1/manage/healthz`
-- `GET /v1/manage/readyz`
-
-### Why
-
-- Simple to run and reason about
-- Safe enough for ingestion (size limits, content-type checks, per-entry
-  vetting)
-- Easy to self-host and observe (accepted reports stream to stdout)
-- Collected browser reports (including CSP report traffic) may support
-  client-side monitoring and script-governance such as those relevant to PCI DSS
-  payment-page security guidance for Requirements 6.4.3 and 11.6.1 from the
-  [PCI Security Standards Council](https://blog.pcisecuritystandards.org/new-information-supplement-payment-page-security-and-preventing-e-skimming)
-
-### How
-
-Run locally with Go:
-
-```bash
-go run ./cmd/server
+```http
+Reporting-Endpoints: default="https://reports.example.com/v1/reports"
+Content-Security-Policy: script-src 'self'; report-to default; report-uri https://reports.example.com/v1/reports
 ```
 
-Run a local demo with Docker Compose:
+Browsers `POST` their reports to `/v1/reports`, and each accepted report is
+written to stdout as one line:
 
-```bash
+```json
+{"time":"2026-11-06T12:30:00.123456789Z","level":"INFO","msg":"accepted report","received_at":"2026-11-06T12:30:00.123Z","age":1,"type":"csp-violation","url":"https://app.example.com/checkout","user_agent":"Mozilla/5.0 ...","body":{"effectiveDirective":"script-src-elem","blockedURL":"https://cdn.example.net/x.js","disposition":"enforce"}}
+```
+
+See [reports](docs/reports.md) for the endpoint, the formats, and the
+output.
+
+## Running
+
+Build and run the container image:
+
+```sh
+docker build -t browser-reporting-api .
+docker run --rm -p 8080:8080 \
+  -e APP_REPORTS_ALLOWED_ORIGINS=https://app.example.com \
+  browser-reporting-api
+```
+
+Or download `browser-reporting-api_linux_amd64.tar.gz` (or `arm64`) from
+the [latest release](https://github.com/cruxstack/browser-reporting-api/releases/latest)
+and run the binary. Every setting is an environment variable; see
+[configuration](docs/configuration.md).
+
+## Local development
+
+Start the service in Docker Compose, send the example reports in both
+formats, and print what it wrote:
+
+```sh
 make demo
-```
-
-This starts the API, sends a sample batched report payload, and prints API logs.
-To keep watching streamed report lines:
-
-```bash
-make logs
-```
-
-The demo sender payload is stored at `demo/reports.json`.
-
-Send a manual sample report:
-
-```bash
-make report
-```
-
-`make report` sends the same payload file used by the compose demo:
-`demo/reports.json`.
-
-Health check:
-
-```bash
-make health
-```
-
-Stop containers:
-
-```bash
 make down
 ```
 
-Environment variables:
+`make help` lists the other targets; [CONTRIBUTING](CONTRIBUTING.md) covers
+tests and conventions.
 
-- `LISTEN_ADDR` (default `:8080`)
-- `BASE_PATH` (default `/`)
-- `MAX_BODY_BYTES` (default `1048576`)
-- `REPORTS_ALLOWED_ORIGINS` (default `*`)
+## Documentation
 
-Allowed origin examples:
+| Document                                   | Covers                                                             |
+| ------------------------------------------ | ------------------------------------------------------------------ |
+| [Reports](docs/reports.md)                 | Browser setup, the endpoint, the accepted formats, the output.     |
+| [Configuration](docs/configuration.md)     | Environment variables, logs, health checks, running in production. |
+| [Architecture](docs/architecture.md)       | Packages, the request flow, failure handling, extending it.        |
+| [Upgrading to v2](docs/upgrading-to-v2.md) | Breaking changes from v1.                                          |
 
-- `REPORTS_ALLOWED_ORIGINS=*`
-- `REPORTS_ALLOWED_ORIGINS=https://app.example.com,https://admin.example.com`
-- `REPORTS_ALLOWED_ORIGINS=https://*.example.com,http://localhost:*`
+## License
 
-If `BASE_PATH=/collector`, endpoints become:
-
-- `POST /collector/v1/reports`
-- `GET /collector/v1/manage/healthz`
-- `GET /collector/v1/manage/readyz`
-
-## Development
-
-Run tests:
-
-```bash
-go test ./...
-```
-
-Make targets used during development:
-
-```bash
-make test
-make run
-make up
-make demo-send
-make demo
-make logs
-make report
-make health
-make down
-```
-
-Implementation notes:
-
-- Routes are mounted under configurable `BASE_PATH`.
-- Reporting ingestion accepts batched arrays and processes entries
-  independently.
-- Invalid entries are rejected while valid entries in the same batch are still
-  accepted.
-- Accepted entries are emitted to stdout in NDJSON format.
+[MIT](LICENSE)

@@ -1,74 +1,67 @@
+// Command server runs browser-reporting-api: it receives browser reports
+// over HTTP and writes each accepted report to stdout as one JSON line. Its
+// own logs go to stderr.
 package main
 
 import (
 	"context"
 	"log/slog"
-	"net/http"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"syscall"
-	"time"
 
-	"github.com/cruxstack/browser-reporting-api/internal/config"
-	"github.com/cruxstack/browser-reporting-api/internal/httpx"
-	"github.com/cruxstack/browser-reporting-api/internal/management"
-	"github.com/cruxstack/browser-reporting-api/internal/parser"
-	"github.com/cruxstack/browser-reporting-api/internal/reporting"
-	"github.com/cruxstack/browser-reporting-api/internal/stream"
+	"github.com/cruxstack/browser-reporting-api/v2/internal/app"
+	"github.com/cruxstack/browser-reporting-api/v2/internal/config"
+	"github.com/cruxstack/browser-reporting-api/v2/internal/logging"
 )
 
+// version is set at build time with -ldflags "-X main.version=v2.0.0".
+var version = "dev"
+
 func main() {
-	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, nil)))
+	var level slog.LevelVar
+	slog.SetDefault(slog.New(logging.NewJSONHandler(os.Stderr, &level)))
 
-	cfg, err := config.LoadFromEnv()
-	if err != nil {
-		slog.Error("load config", "error", err)
+	if err := run(&level); err != nil {
+		slog.Error("server failed", "version", version, "error", err)
 		os.Exit(1)
 	}
+}
 
-	writer := stream.NewNDJSONWriter(os.Stdout)
-	reportsParser := parser.NewJSONBatchParser()
-	reportsService := reporting.NewService(reportsParser, writer)
-	originMatcher, err := httpx.NewOriginMatcher(cfg.AllowedOrigins)
+func run(level *slog.LevelVar) error {
+	cfg, err := config.FromEnv()
 	if err != nil {
-		slog.Error("build origin matcher", "error", err)
-		os.Exit(1)
+		return err
 	}
+	level.Set(cfg.LogLevel)
 
-	reportsHandler := reporting.NewHandler(reportsService, cfg.MaxBodyBytes, originMatcher)
-	managementHandler := management.NewHandler()
-	handler := httpx.NewRouter(cfg.BasePath, reportsHandler.Routes(), managementHandler.Routes())
-
-	srv := &http.Server{
-		Addr:              cfg.ListenAddr,
-		Handler:           handler,
-		ReadHeaderTimeout: 5 * time.Second,
-		ReadTimeout:       10 * time.Second,
-		WriteTimeout:      10 * time.Second,
-		IdleTimeout:       60 * time.Second,
+	a, err := app.New(cfg)
+	if err != nil {
+		return err
 	}
-
-	go func() {
-		slog.Info("listening", "addr", cfg.ListenAddr, "base_path", cfg.BasePath)
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			slog.Error("server error", "error", err)
-			os.Exit(1)
-		}
-	}()
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	<-ctx.Done()
-	slog.Info("shutting down")
+	slog.InfoContext(ctx, "starting",
+		"version", version,
+		"revision", revision(),
+		"log_level", cfg.LogLevel.String(),
+		"max_body_bytes", cfg.Reports.MaxBodyBytes,
+		"allowed_origins", cfg.Reports.AllowedOrigins,
+	)
+	return a.Run(ctx)
+}
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	if err := srv.Shutdown(shutdownCtx); err != nil {
-		slog.Error("graceful shutdown failed", "error", err)
-		if closeErr := srv.Close(); closeErr != nil {
-			slog.Error("force close failed", "error", closeErr)
+// revision returns the VCS revision the binary was built from, if known.
+func revision() string {
+	if info, ok := debug.ReadBuildInfo(); ok {
+		for _, s := range info.Settings {
+			if s.Key == "vcs.revision" {
+				return s.Value
+			}
 		}
 	}
+	return "unknown"
 }

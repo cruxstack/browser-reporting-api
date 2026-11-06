@@ -1,4 +1,8 @@
-FROM golang:1.26.2-alpine AS builder
+# syntax=docker/dockerfile:1
+
+# The builder runs on the build machine's platform and cross-compiles for
+# the target platform, so multi-platform builds need no emulation.
+FROM --platform=$BUILDPLATFORM golang:1.27.3-alpine AS builder
 
 WORKDIR /src
 
@@ -7,16 +11,20 @@ RUN go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o /out/server ./cmd/server
+ARG TARGETOS
+ARG TARGETARCH
+ARG VERSION=dev
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
+    go build -trimpath -ldflags="-s -w -X main.version=${VERSION}" -o /out/server ./cmd/server
 
-FROM alpine:3.21
+FROM alpine:3.24
 
-RUN adduser -D -g '' appuser
-
-USER appuser
 WORKDIR /app
-
 COPY --from=builder /out/server /app/server
+
+# A numeric unprivileged user, so runtimes can verify it isn't root (such as
+# Kubernetes runAsNonRoot, which rejects a user given by name).
+USER 65532:65532
 
 EXPOSE 8080
 

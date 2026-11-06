@@ -1,5 +1,10 @@
 .git
-.gitignore
-bin
+.github
+.devcontainer
+.worktrees
+.local
+.env
+dist
 tmp
+coverage.out
 .DS_Store

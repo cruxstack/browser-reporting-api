@@ -1,0 +1,13 @@
+{
+  "csp-report": {
+    "document-uri": "https://site.example/checkout",
+    "referrer": "https://site.example/cart",
+    "violated-directive": "script-src-elem",
+    "effective-directive": "script-src-elem",
+    "original-policy": "script-src 'self' https://cdn.site.example; report-uri https://reports.site.example/v1/reports",
+    "disposition": "enforce",
+    "blocked-uri": "https://cdn.bad-example.test/skimmer.js",
+    "status-code": 200,
+    "script-sample": ""
+  }
+}

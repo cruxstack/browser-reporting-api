@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 	"testing"
@@ -131,6 +132,27 @@ func TestReports_BadRequests(t *testing.T) {
 			}
 		})
 	}
+}
+
+// A report that can't be written to the stream is not reported as accepted:
+// the request fails, so the browser can send it again, and the error is
+// visible to monitoring.
+func TestReports_StreamWriteFailureIsAnError(t *testing.T) {
+	e := newEnvWithStream(t, nil, failingWriter{})
+
+	resp := e.postReports("application/csp-report", readExample(t, "csp-report.json"))
+	if resp.status != http.StatusInternalServerError {
+		t.Errorf("status = %d, want 500 (body %s)", resp.status, resp.body)
+	}
+	if strings.Contains(string(resp.body), "broken pipe") {
+		t.Errorf("body %s leaks the internal error", resp.body)
+	}
+}
+
+type failingWriter struct{}
+
+func (failingWriter) Write([]byte) (int, error) {
+	return 0, errors.New("write /dev/stdout: broken pipe")
 }
 
 // With a base path, every route moves under it.

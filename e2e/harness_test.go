@@ -40,14 +40,23 @@ type env struct {
 // the server would be started with.
 func newEnv(t *testing.T, vars map[string]string) *env {
 	t.Helper()
+	stream := &syncBuffer{}
+	e := newEnvWithStream(t, vars, stream)
+	e.stream = stream
+	return e
+}
+
+// newEnvWithStream builds the service with w as its report stream. The
+// env's reports method can't read w.
+func newEnvWithStream(t *testing.T, vars map[string]string, w io.Writer) *env {
+	t.Helper()
 	cfg, err := config.Load(func(k string) (string, bool) { v, ok := vars[k]; return v, ok })
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	stream := &syncBuffer{}
 	a, err := app.New(cfg,
-		app.WithReportWriter(stream),
+		app.WithReportWriter(w),
 		app.WithClock(func() time.Time { return receivedAt }),
 	)
 	if err != nil {
@@ -56,7 +65,7 @@ func newEnv(t *testing.T, vars map[string]string) *env {
 
 	srv := httptest.NewServer(a.Handler())
 	t.Cleanup(srv.Close)
-	return &env{t: t, url: srv.URL + strings.TrimSuffix(cfg.Server.BasePath, "/"), stream: stream}
+	return &env{t: t, url: srv.URL + strings.TrimSuffix(cfg.Server.BasePath, "/")}
 }
 
 // response is a finished HTTP response.

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"sync"
 	"testing"
@@ -83,6 +84,20 @@ func TestNDJSONWriter_WritesBodyAsSentOnOneLine(t *testing.T) {
 	}
 	if !strings.Contains(out, `"body":{"z":1,"a":9007199254740993}`) {
 		t.Errorf("wrote %q, want the body compacted with its keys and digits unchanged", out)
+	}
+}
+
+type failingWriter struct{}
+
+func (failingWriter) Write([]byte) (int, error) { return 0, errors.New("broken pipe") }
+
+// slog.Logger drops write errors, so the writer must not go through one.
+func TestNDJSONWriter_ReturnsWriteError(t *testing.T) {
+	w := NewNDJSONWriter(failingWriter{})
+
+	err := w.WriteReport(context.Background(), report.Accepted{Type: "csp-violation", URL: "https://site.example", Body: json.RawMessage(`{}`)})
+	if err == nil || !strings.Contains(err.Error(), "broken pipe") {
+		t.Errorf("WriteReport() = %v, want the write error", err)
 	}
 }
 

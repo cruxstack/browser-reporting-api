@@ -75,18 +75,19 @@ func TestLoad_Invalid(t *testing.T) {
 		vars map[string]string
 		want string
 	}{
-		"log level":       {map[string]string{"APP_LOG_LEVEL": "loud"}, "APP_LOG_LEVEL"},
-		"listen addr":     {map[string]string{"APP_LISTEN_ADDR": "8080"}, "APP_LISTEN_ADDR"},
-		"max body text":   {map[string]string{"APP_MAX_BODY_BYTES": "1MB"}, "APP_MAX_BODY_BYTES"},
-		"max body zero":   {map[string]string{"APP_MAX_BODY_BYTES": "0"}, "APP_MAX_BODY_BYTES"},
-		"base path param": {map[string]string{"APP_BASE_PATH": "/{id}"}, "APP_BASE_PATH"},
-		"base path empty": {map[string]string{"APP_BASE_PATH": "/a//b"}, "APP_BASE_PATH"},
-		"base path dots":  {map[string]string{"APP_BASE_PATH": "/a/../b"}, "APP_BASE_PATH"},
-		"base path query": {map[string]string{"APP_BASE_PATH": "/a?b"}, "APP_BASE_PATH"},
-		"origin path":     {map[string]string{"APP_REPORTS_ALLOWED_ORIGINS": "https://app.example.com/path"}, "APP_REPORTS_ALLOWED_ORIGINS"},
-		"origin slash":    {map[string]string{"APP_REPORTS_ALLOWED_ORIGINS": "https://app.example.com/"}, "APP_REPORTS_ALLOWED_ORIGINS"},
-		"origin scheme":   {map[string]string{"APP_REPORTS_ALLOWED_ORIGINS": "app.example.com"}, "APP_REPORTS_ALLOWED_ORIGINS"},
-		"any with others": {map[string]string{"APP_REPORTS_ALLOWED_ORIGINS": "*,https://app.example.com"}, "can't be combined"},
+		"log level":               {map[string]string{"APP_LOG_LEVEL": "loud"}, "APP_LOG_LEVEL"},
+		"listen addr":             {map[string]string{"APP_LISTEN_ADDR": "8080"}, "APP_LISTEN_ADDR"},
+		"max body text":           {map[string]string{"APP_MAX_BODY_BYTES": "1MB"}, "APP_MAX_BODY_BYTES"},
+		"max body zero":           {map[string]string{"APP_MAX_BODY_BYTES": "0"}, "APP_MAX_BODY_BYTES"},
+		"base path param":         {map[string]string{"APP_BASE_PATH": "/{id}"}, "APP_BASE_PATH"},
+		"base path empty":         {map[string]string{"APP_BASE_PATH": "/a//b"}, "APP_BASE_PATH"},
+		"base path dots":          {map[string]string{"APP_BASE_PATH": "/a/../b"}, "APP_BASE_PATH"},
+		"base path query":         {map[string]string{"APP_BASE_PATH": "/a?b"}, "APP_BASE_PATH"},
+		"origin path":             {map[string]string{"APP_REPORTS_ALLOWED_ORIGINS": "https://app.example.com/path"}, "APP_REPORTS_ALLOWED_ORIGINS"},
+		"origin slash":            {map[string]string{"APP_REPORTS_ALLOWED_ORIGINS": "https://app.example.com/"}, "APP_REPORTS_ALLOWED_ORIGINS"},
+		"origin scheme":           {map[string]string{"APP_REPORTS_ALLOWED_ORIGINS": "app.example.com"}, "APP_REPORTS_ALLOWED_ORIGINS"},
+		"origin partial wildcard": {map[string]string{"APP_REPORTS_ALLOWED_ORIGINS": "https://*example.com"}, "whole host label"},
+		"any with others":         {map[string]string{"APP_REPORTS_ALLOWED_ORIGINS": "*,https://app.example.com"}, "can't be combined"},
 	}
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {

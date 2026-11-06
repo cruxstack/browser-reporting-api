@@ -15,36 +15,76 @@ import (
 // Any is the entry that allows every origin.
 const Any = "*"
 
-var wildcardPattern = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9+.-]*://.*\*.*$`)
+// label matches one DNS label, which is what a host wildcard stands for. It
+// can't match a dot or a colon, so a wildcard can't span labels or reach
+// into the port.
+const label = `[a-z0-9-]+`
 
 // Validate reports whether entry is "*", an origin (scheme://host[:port]),
-// or an origin with wildcards (https://*.example.com, http://localhost:*).
+// or an origin in which whole host labels or the whole port are "*", such as
+// https://*.example.com or http://localhost:*. A wildcard label matches
+// exactly one label. Entries are case-insensitive.
 func Validate(entry string) error {
+	_, err := parse(entry)
+	return err
+}
+
+// rule is one parsed entry.
+type rule struct {
+	any     bool
+	exact   string
+	pattern *regexp.Regexp
+}
+
+func parse(entry string) (rule, error) {
 	if entry == Any {
-		return nil
+		return rule{any: true}, nil
 	}
 
-	if strings.Contains(entry, "*") {
-		if !wildcardPattern.MatchString(entry) {
-			return fmt.Errorf("invalid wildcard origin pattern: %q", entry)
+	e := strings.ToLower(entry)
+	wildPort := strings.HasSuffix(e, ":*")
+	base := strings.TrimSuffix(e, ":*")
+
+	u, err := url.Parse(base)
+	if err != nil || u.Scheme == "" || u.Host == "" || strings.HasSuffix(u.Host, ":") ||
+		u.Scheme+"://"+u.Host != base || (wildPort && u.Port() != "") {
+		return rule{}, fmt.Errorf("%q must be an origin, scheme://host[:port], such as https://app.example.com", entry)
+	}
+
+	labels := strings.Split(u.Hostname(), ".")
+	wild := wildPort
+	for _, l := range labels {
+		switch {
+		case l == "*":
+			wild = true
+		case strings.Contains(l, "*"):
+			return rule{}, fmt.Errorf("%q: a wildcard must be a whole host label, as in https://*.example.com", entry)
 		}
-		return nil
+	}
+	if !wild {
+		return rule{exact: e}, nil
 	}
 
-	if !strings.Contains(entry, "://") {
-		return fmt.Errorf("invalid origin %q: must include scheme", entry)
+	var b strings.Builder
+	b.WriteString("^" + regexp.QuoteMeta(u.Scheme) + "://")
+	for i, l := range labels {
+		if i > 0 {
+			b.WriteString(`\.`)
+		}
+		if l == "*" {
+			b.WriteString(label)
+		} else {
+			b.WriteString(regexp.QuoteMeta(l))
+		}
 	}
-
-	parsed, err := url.Parse(entry)
-	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
-		return fmt.Errorf("invalid origin %q: must be scheme://host[:port]", entry)
+	if port := u.Port(); port != "" {
+		b.WriteString(":" + port)
 	}
-
-	if parsed.Path != "" || parsed.RawQuery != "" || parsed.Fragment != "" || parsed.User != nil {
-		return fmt.Errorf("invalid origin %q: must be scheme://host[:port]", entry)
+	if wildPort {
+		b.WriteString(`:[0-9]+`)
 	}
-
-	return nil
+	b.WriteString("$")
+	return rule{pattern: regexp.MustCompile(b.String())}, nil
 }
 
 // Matcher decides whether an origin is allowed.
@@ -64,21 +104,18 @@ func NewMatcher(entries []string) (*Matcher, error) {
 		if entry == "" {
 			continue
 		}
-		if err := Validate(entry); err != nil {
+		r, err := parse(entry)
+		if err != nil {
 			return nil, err
 		}
 
 		switch {
-		case entry == Any:
+		case r.any:
 			m.allowAll = true
-		case strings.Contains(entry, "*"):
-			re, err := wildcardToRegexp(entry)
-			if err != nil {
-				return nil, err
-			}
-			m.patterns = append(m.patterns, re)
+		case r.pattern != nil:
+			m.patterns = append(m.patterns, r.pattern)
 		default:
-			m.exact[entry] = struct{}{}
+			m.exact[r.exact] = struct{}{}
 		}
 	}
 
@@ -90,7 +127,8 @@ func NewMatcher(entries []string) (*Matcher, error) {
 }
 
 // Allow reports whether origin is allowed, and returns the value of the
-// Access-Control-Allow-Origin response header for it.
+// Access-Control-Allow-Origin response header for it: "*" when every origin
+// is allowed, or else origin as the browser sent it.
 func (m *Matcher) Allow(origin string) (string, bool) {
 	if m.allowAll {
 		return Any, true
@@ -101,46 +139,16 @@ func (m *Matcher) Allow(origin string) (string, bool) {
 		return "", false
 	}
 
-	if _, ok := m.exact[origin]; ok {
+	key := strings.ToLower(origin)
+	if _, ok := m.exact[key]; ok {
 		return origin, true
 	}
 
 	for _, re := range m.patterns {
-		if re.MatchString(origin) {
+		if re.MatchString(key) {
 			return origin, true
 		}
 	}
 
 	return "", false
-}
-
-func wildcardToRegexp(pattern string) (*regexp.Regexp, error) {
-	var b strings.Builder
-	b.WriteString("^")
-	for i, ch := range pattern {
-		if ch == '*' {
-			if isPortWildcard(pattern, i) {
-				b.WriteString("[0-9]+")
-				continue
-			}
-
-			// Match any character except '.' so that a single wildcard
-			// segment cannot span subdomain or port boundaries, matching
-			// standard CORS same-origin semantics.
-			b.WriteString("[^.]*")
-			continue
-		}
-		b.WriteString(regexp.QuoteMeta(string(ch)))
-	}
-	b.WriteString("$")
-
-	return regexp.Compile(b.String())
-}
-
-func isPortWildcard(pattern string, wildcardIndex int) bool {
-	if wildcardIndex <= 0 {
-		return false
-	}
-
-	return pattern[wildcardIndex-1] == ':'
 }

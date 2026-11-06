@@ -88,6 +88,7 @@ func TestOrigins_Preflight(t *testing.T) {
 		"Access-Control-Allow-Origin":  "https://app.example.com",
 		"Access-Control-Allow-Methods": "POST, OPTIONS",
 		"Access-Control-Allow-Headers": "Content-Type",
+		"Access-Control-Max-Age":       "7200",
 		"Vary":                         "Origin",
 	} {
 		if got := resp.header.Get(header); got != want {

@@ -32,10 +32,18 @@ func (h *reportsHandler) routes() chi.Router {
 	return r
 }
 
+// preflightMaxAge is how long browsers may cache a preflight response, in
+// seconds. Chrome caps it at 2 hours. Each POST is still checked against the
+// allowed origins, so a cached preflight can't let a removed origin through.
+const preflightMaxAge = "7200"
+
 func (h *reportsHandler) handlePreflight(w http.ResponseWriter, r *http.Request) {
 	if !h.setCORSHeaders(w, r) {
 		writeError(w, http.StatusForbidden, "origin not allowed")
 		return
+	}
+	if r.Header.Get("Origin") != "" {
+		w.Header().Set("Access-Control-Max-Age", preflightMaxAge)
 	}
 	w.WriteHeader(http.StatusNoContent)
 }

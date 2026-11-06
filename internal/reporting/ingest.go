@@ -2,10 +2,10 @@ package reporting
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"time"
 
-	"github.com/cockroachdb/errors"
 	"github.com/cruxstack/browser-reporting-api/internal/domain"
 )
 
@@ -56,7 +56,7 @@ func (s *Service) Ingest(ctx context.Context, body io.Reader) (domain.IngestResu
 		}
 
 		if err := s.sink.WriteReport(ctx, accepted); err != nil {
-			return domain.IngestResult{}, errors.Wrap(err, "stream accepted report")
+			return domain.IngestResult{}, fmt.Errorf("stream accepted report: %w", err)
 		}
 
 		result.Accepted++

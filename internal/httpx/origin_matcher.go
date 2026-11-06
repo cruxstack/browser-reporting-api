@@ -1,10 +1,9 @@
 package httpx
 
 import (
+	"errors"
 	"regexp"
 	"strings"
-
-	"github.com/cockroachdb/errors"
 )
 
 type OriginMatcher struct {

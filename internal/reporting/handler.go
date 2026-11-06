@@ -1,14 +1,15 @@
 package reporting
 
 import (
+	"errors"
 	"mime"
 	"net/http"
 	"strings"
 
-	"github.com/cockroachdb/errors"
+	"github.com/go-chi/chi/v5"
+
 	"github.com/cruxstack/browser-reporting-api/internal/domain"
 	"github.com/cruxstack/browser-reporting-api/internal/httpx"
-	"github.com/go-chi/chi/v5"
 )
 
 // Handler handles HTTP requests for the reporting ingestion endpoint.

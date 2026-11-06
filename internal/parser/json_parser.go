@@ -3,9 +3,10 @@ package parser
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 
-	"github.com/cockroachdb/errors"
 	"github.com/cruxstack/browser-reporting-api/internal/domain"
 )
 
@@ -22,7 +23,7 @@ func (p *JSONBatchParser) ParseBatch(r io.Reader) ([]domain.IncomingReport, erro
 
 	var payload json.RawMessage
 	if err := decoder.Decode(&payload); err != nil {
-		return nil, errors.Wrap(err, "decode reports payload")
+		return nil, fmt.Errorf("decode reports payload: %w", err)
 	}
 
 	payload = bytes.TrimSpace(payload)
@@ -51,7 +52,7 @@ func parseReportsPayload(payload json.RawMessage) ([]domain.IncomingReport, erro
 	if payload[0] == '[' {
 		var reports []domain.IncomingReport
 		if err := json.Unmarshal(payload, &reports); err != nil {
-			return nil, errors.Wrap(err, "decode reports payload")
+			return nil, fmt.Errorf("decode reports payload: %w", err)
 		}
 		return reports, nil
 	}
@@ -69,7 +70,7 @@ func parseLegacyCSPReportPayload(payload json.RawMessage) ([]domain.IncomingRepo
 	}
 
 	if err := json.Unmarshal(payload, &legacy); err != nil {
-		return nil, errors.Wrap(err, "decode reports payload")
+		return nil, fmt.Errorf("decode reports payload: %w", err)
 	}
 
 	trimmed := bytes.TrimSpace(legacy.CSPReport)
@@ -84,7 +85,7 @@ func parseLegacyCSPReportPayload(payload json.RawMessage) ([]domain.IncomingRepo
 		DocumentURI string `json:"document-uri"`
 	}
 	if err := json.Unmarshal(trimmed, &body); err != nil {
-		return nil, errors.Wrap(err, "decode legacy csp-report body")
+		return nil, fmt.Errorf("decode legacy csp-report body: %w", err)
 	}
 
 	return []domain.IncomingReport{{

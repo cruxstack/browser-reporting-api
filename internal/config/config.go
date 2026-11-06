@@ -1,14 +1,14 @@
 package config
 
 import (
+	"errors"
+	"fmt"
 	"log/slog"
 	"net/url"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
-
-	"github.com/cockroachdb/errors"
 )
 
 const (
@@ -50,7 +50,7 @@ func LoadFromEnv() (Config, error) {
 	maxBody := valueOrDefault("MAX_BODY_BYTES", strconv.Itoa(defaultMaxBodySize))
 	maxBodyInt, err := strconv.ParseInt(maxBody, 10, 64)
 	if err != nil || maxBodyInt <= 0 {
-		return Config{}, errors.Newf("invalid MAX_BODY_BYTES: %q", maxBody)
+		return Config{}, fmt.Errorf("invalid MAX_BODY_BYTES: %q", maxBody)
 	}
 	cfg.MaxBodyBytes = maxBodyInt
 
@@ -71,22 +71,22 @@ func validateAllowedOrigins(origins []string) error {
 
 		if strings.Contains(origin, "*") {
 			if !wildcardPattern.MatchString(origin) {
-				return errors.Newf("invalid wildcard origin pattern: %q", origin)
+				return fmt.Errorf("invalid wildcard origin pattern: %q", origin)
 			}
 			continue
 		}
 
 		if !strings.Contains(origin, "://") {
-			return errors.Newf("invalid origin %q: must include scheme", origin)
+			return fmt.Errorf("invalid origin %q: must include scheme", origin)
 		}
 
 		parsed, err := url.Parse(origin)
 		if err != nil || parsed.Scheme == "" || parsed.Host == "" {
-			return errors.Newf("invalid origin %q: must be scheme://host[:port]", origin)
+			return fmt.Errorf("invalid origin %q: must be scheme://host[:port]", origin)
 		}
 
 		if parsed.Path != "" || parsed.RawQuery != "" || parsed.Fragment != "" || parsed.User != nil {
-			return errors.Newf("invalid origin %q: must be scheme://host[:port]", origin)
+			return fmt.Errorf("invalid origin %q: must be scheme://host[:port]", origin)
 		}
 	}
 

@@ -3,10 +3,9 @@ package stream
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
-
-	"github.com/cockroachdb/errors"
 
 	"github.com/cruxstack/browser-reporting-api/internal/domain"
 )
@@ -26,7 +25,7 @@ func NewNDJSONWriter(w io.Writer) *NDJSONWriter {
 func (w *NDJSONWriter) WriteReport(_ context.Context, report domain.AcceptedReport) error {
 	var body map[string]any
 	if err := json.Unmarshal(report.Body, &body); err != nil {
-		return errors.Wrap(err, "decode report body")
+		return fmt.Errorf("decode report body: %w", err)
 	}
 
 	w.logger.Info(

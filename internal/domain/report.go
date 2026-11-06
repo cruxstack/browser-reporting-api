@@ -3,11 +3,10 @@ package domain
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"net/url"
 	"strings"
 	"time"
-
-	"github.com/cockroachdb/errors"
 )
 
 const (

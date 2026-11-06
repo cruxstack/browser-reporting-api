@@ -50,11 +50,14 @@ jobs:
             tar -czf "release/browser-reporting-api_linux_${arch}.tar.gz" -C dist browser-reporting-api
           done
           (cd release && sha256sum *.tar.gz > checksums.txt)
+      - name: Setup Buildx
+        if: steps.tag_version.outputs.new_tag != ''
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - name: Build Container Image
         if: steps.tag_version.outputs.new_tag != ''
         env:
           VERSION: ${{ steps.tag_version.outputs.new_tag }}
-        run: docker build --build-arg VERSION="$VERSION" .
+        run: docker buildx build --platform linux/amd64,linux/arm64 --build-arg VERSION="$VERSION" .
       - name: Create Release
         if: steps.tag_version.outputs.new_tag != ''
         uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1.21.0

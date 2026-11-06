@@ -1,0 +1,28 @@
+{
+  "name": "browser-reporting-api",
+  "image": "mcr.microsoft.com/devcontainers/base:bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/go:1": {
+      "version": "1.27"
+    },
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
+  },
+  "forwardPorts": [8080],
+  "postCreateCommand": "go mod download",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "editorconfig.editorconfig",
+        "github.vscode-github-actions",
+        "golang.go"
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+        "go.lintTool": "golangci-lint-v2",
+        "[markdown]": {
+          "editor.rulers": [80]
+        }
+      }
+    }
+  }
+}

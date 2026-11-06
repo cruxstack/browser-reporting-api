@@ -98,25 +98,13 @@ If `BASE_PATH=/collector`, endpoints become:
 
 ## Development
 
-Run tests:
+Run lint, tests, and the vulnerability check, as CI does:
 
 ```bash
-go test ./...
+make check
 ```
 
-Make targets used during development:
-
-```bash
-make test
-make run
-make up
-make demo-send
-make demo
-make logs
-make report
-make health
-make down
-```
+`make help` lists every target.
 
 Implementation notes:
 

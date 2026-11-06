@@ -3,8 +3,9 @@ package management
 import (
 	"net/http"
 
-	"github.com/cruxstack/browser-reporting-api/internal/httpx"
 	"github.com/go-chi/chi/v5"
+
+	"github.com/cruxstack/browser-reporting-api/internal/httpx"
 )
 
 type Handler struct{}

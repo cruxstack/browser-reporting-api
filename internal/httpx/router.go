@@ -10,7 +10,6 @@ import (
 func NewRouter(basePath string, reports, management chi.Router) http.Handler {
 	api := chi.NewRouter()
 	api.Use(middleware.RequestID)
-	api.Use(middleware.RealIP)
 	api.Use(middleware.Recoverer)
 
 	api.Mount("/v1/reports", reports)

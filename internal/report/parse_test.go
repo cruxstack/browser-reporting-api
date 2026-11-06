@@ -3,6 +3,7 @@ package report
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestParseBatchAcceptsSingleArrayValue(t *testing.T) {
@@ -53,5 +54,28 @@ func TestParseBatchRejectsLegacyCSPReportWithoutBody(t *testing.T) {
 	_, err := Parse(strings.NewReader(`{"type":"csp-violation"}`))
 	if err == nil {
 		t.Fatal("expected error")
+	}
+}
+
+// An entry that doesn't decode is returned for Vet to reject, so the valid
+// entries of its batch are kept.
+func TestParseKeepsBatchWhenAnEntryDoesNotDecode(t *testing.T) {
+	reports, err := Parse(strings.NewReader(`[
+		{"age":"1","type":"csp-violation","url":"https://site.example","body":{}},
+		"not an object",
+		{"age":1,"type":"csp-violation","url":"https://site.example","body":{"x":1}}
+	]`))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(reports) != 3 {
+		t.Fatalf("expected 3 reports, got %d", len(reports))
+	}
+
+	now := time.Now()
+	for i, wantErr := range []bool{true, true, false} {
+		if _, err := Vet(reports[i], now); (err != nil) != wantErr {
+			t.Errorf("Vet(reports[%d]) error = %v, want error %t", i, err, wantErr)
+		}
 	}
 }

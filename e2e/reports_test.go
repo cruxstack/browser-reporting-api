@@ -86,12 +86,15 @@ func TestReports_InvalidEntriesAreRejectedOneByOne(t *testing.T) {
 		{"age":-1,"type":"csp-violation","url":"https://site.example","body":{"a":1}},
 		{"age":1,"type":"csp-violation","url":"https://site.example","body":[1]},
 		{"age":1,"type":"csp-violation","url":"https://site.example"},
+		{"age":"1","type":"csp-violation","url":"https://site.example","body":{"a":1}},
+		"not an object",
+		null,
 		{"age":1,"type":"deprecation","url":"https://site.example/page","body":{"id":"x"}}
 	]`)
 	if resp.status != http.StatusOK {
 		t.Fatalf("status = %d, want 200 (body %s)", resp.status, resp.body)
 	}
-	if got, want := resp.result(t), (ingest.Result{Received: 7, Accepted: 2, Rejected: 5}); got != want {
+	if got, want := resp.result(t), (ingest.Result{Received: 10, Accepted: 2, Rejected: 8}); got != want {
 		t.Errorf("result = %+v, want %+v", got, want)
 	}
 	if got := len(e.reports()); got != 2 {

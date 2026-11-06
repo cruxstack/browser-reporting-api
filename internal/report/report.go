@@ -25,6 +25,9 @@ type Incoming struct {
 	URL       string          `json:"url"`
 	UserAgent string          `json:"user_agent"`
 	Body      json.RawMessage `json:"body"`
+
+	// decodeErr is why Parse couldn't decode the entry, which Vet rejects.
+	decodeErr error
 }
 
 // Accepted is a vetted report entry, stamped with the time it was received.
@@ -41,6 +44,10 @@ type Accepted struct {
 // now. It returns an error, which says which field is invalid, if the entry
 // is rejected.
 func Vet(in Incoming, now time.Time) (Accepted, error) {
+	if in.decodeErr != nil {
+		return Accepted{}, in.decodeErr
+	}
+
 	reportType := strings.TrimSpace(in.Type)
 	if reportType == "" || len(reportType) > maxTypeLen {
 		return Accepted{}, errors.New("invalid type")

@@ -60,9 +60,17 @@ func Parse(r io.Reader) ([]Incoming, error) {
 func parsePayload(payload json.RawMessage) ([]Incoming, error) {
 	switch payload[0] {
 	case '[':
-		var reports []Incoming
-		if err := json.Unmarshal(payload, &reports); err != nil {
+		var entries []json.RawMessage
+		if err := json.Unmarshal(payload, &entries); err != nil {
 			return nil, fmt.Errorf("decode reports payload: %w", err)
+		}
+		// Decode each entry on its own, so an entry with a field of the
+		// wrong type is rejected by Vet instead of failing the batch.
+		reports := make([]Incoming, len(entries))
+		for i, entry := range entries {
+			if err := json.Unmarshal(entry, &reports[i]); err != nil {
+				reports[i] = Incoming{decodeErr: fmt.Errorf("decode report: %w", err)}
+			}
 		}
 		return reports, nil
 	case '{':

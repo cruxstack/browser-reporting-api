@@ -53,6 +53,16 @@ Docker Compose, with the settings in `.env` (copy `.env.example`).
 - Error responses are seen by clients. Return a generic message for server
   errors, and log the details.
 
+## Dependencies
+
+Dependabot proposes updates to Go modules, GitHub Actions, and the images in
+the Dockerfile and `docker-compose.yml` every week. It waits until a release
+is 5 days old, so a broken or compromised release is more likely to be caught
+first, but it doesn't delay security updates. Follow the same rule when
+updating by hand: take a release younger than 5 days only when it fixes a
+known vulnerability. Actions are pinned to a full commit SHA, with the
+version in a comment.
+
 ## Commits and releases
 
 Pull request titles follow [Conventional Commits](https://www.conventionalcommits.org/)

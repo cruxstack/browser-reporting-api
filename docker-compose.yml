@@ -19,7 +19,7 @@ services:
 
   # sends the example reports in both formats, once the api is healthy
   demo-sender:
-    image: curlimages/curl:8.12.1
+    image: curlimages/curl:8.23.0
     depends_on:
       api:
         condition: service_healthy

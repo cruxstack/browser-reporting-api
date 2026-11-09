@@ -1,9 +1,15 @@
 version: 2
+
+# Version updates wait until a release is 5 days old, so a broken or
+# compromised release is more likely to be caught before it is proposed.
+# Security updates aren't delayed.
 updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 5
     groups:
       github-actions:
         patterns: ["*"]
@@ -12,6 +18,8 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 5
     groups:
       go-modules:
         patterns: ["*"]
@@ -21,6 +29,19 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 5
     groups:
       docker:
+        patterns: ["*"]
+
+  # images in docker-compose.yml
+  - package-ecosystem: "docker-compose"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 5
+    groups:
+      docker-compose:
         patterns: ["*"]

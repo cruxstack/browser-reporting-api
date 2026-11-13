@@ -71,7 +71,7 @@ These settings started in v1 but stop v2 at startup:
 
 ## Building and running
 
-- **Go 1.27.3 or later** is required to build. The module path is now
+- **Go 1.27.4 or later** is required to build. The module path is now
   `github.com/cruxstack/browser-reporting-api/v2`.
 - **The image is native for its platform.** v1 always built an amd64
   binary, which failed on arm64 hosts without emulation. v2 images run as
